@@ -55,12 +55,4 @@ repositories {
         url = uri("https://jaspersoft.jfrog.io/jaspersoft/third-party-ce-artifacts/")
     }
     mavenCentral()
-    maven {
-        name = "GitHubPackages"
-        url = uri("https://maven.pkg.github.com/riege/packages")
-        credentials {
-            username = (project.findProperty("github.packages.access.user") ?: System.getenv("GITHUB_PACKAGES_ACCESS_USER")).toString()
-            password = (project.findProperty("github.packages.access.token") ?: System.getenv("GITHUB_PACKAGES_ACCESS_TOKEN")).toString()
-        }
-    }
 }
