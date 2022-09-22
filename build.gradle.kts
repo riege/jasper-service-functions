@@ -56,3 +56,8 @@ repositories {
     }
     mavenCentral()
 }
+
+
+dependencies {
+    implementation(group = "net.sf.jasperreports", name = "jasperreports", version = "6.14.0")
+}

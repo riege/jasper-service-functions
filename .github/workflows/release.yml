@@ -26,20 +26,20 @@ jobs:
 
       - name: Create release artifacts
         run: |
-          ./gradlew -Pversion=${{ steps.version.outputs.version-without-v }} :jasper-service-functions:jar
+          ./gradlew -Pversion=${{ steps.version.outputs.version-without-v }} jar
 
       - name: Create release and upload artifacts
         uses: softprops/action-gh-release@v1
         with:
           name: Jasper Service Functions ${{ steps.version.outputs.version-without-v }}
           files: |
-            jasper-service-functions/build/libs/*.jar
+            build/libs/*.jar
 
       - name: Publish artifacts to GitHub Packages
         run: |
           echo "New version: ${{ steps.version.outputs.version-without-v }}"
           echo "Github username: ${GITHUB_ACTOR}"
-          ./gradlew -Pversion=${{ steps.version.outputs.version-without-v }} :jasper-service-functions:publish
+          ./gradlew -Pversion=${{ steps.version.outputs.version-without-v }} publish
         env:
           PROJECT_URL: ${{ github.event.repository.url }}
           MAVEN_PUBLISH_URL: https://maven.pkg.github.com/${{ github.repository }}

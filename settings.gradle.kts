@@ -1,4 +1,1 @@
-rootProject.name = "jasper-service"
-include(
-    "jasper-service-functions",
-)
+rootProject.name = "jasper-service-functions"
