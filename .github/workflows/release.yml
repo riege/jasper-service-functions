@@ -1,0 +1,91 @@
+name: release
+
+on:
+  push:
+    tags:
+      - v*
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout latest code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: 8
+          cache: 'gradle'
+
+      - name: Determine Version
+        id: version
+        uses: riege/action-version@v1
+
+      - name: Create release artifacts
+        env:
+          GITHUB_PACKAGES_ACCESS_USER: ${{ secrets.GH_PACKAGES_ACCESS_USER }}
+          GITHUB_PACKAGES_ACCESS_TOKEN: ${{ secrets.GH_PACKAGES_ACCESS_TOKEN }}
+        run: |
+          ./gradlew -Pversion=${{ steps.version.outputs.version-without-v }} :jasper-service-client:jar :jasper-service-functions:jar :jasper-service-server:distTar
+
+      - name: Create release and upload artifacts
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Jasper Service ${{ steps.version.outputs.version-without-v }}
+          files: |
+            jasper-service-client/build/libs/*.jar
+            jasper-service-functions/build/libs/*.jar
+            jasper-service-server/build/distributions/*.tgz
+
+      - name: Publish artifacts to GitHub Packages
+        run: |
+          echo "New version: ${{ steps.version.outputs.version-without-v }}"
+          echo "Github username: ${GITHUB_ACTOR}"
+          ./gradlew -Pversion=${{ steps.version.outputs.version-without-v }} :jasper-service-client:publish :jasper-service-functions:publish
+        env:
+          PROJECT_URL: ${{ github.event.repository.url }}
+          MAVEN_PUBLISH_URL: https://maven.pkg.github.com/${{ github.repository }}
+          MAVEN_PUBLISH_USERNAME: ${{ github.actor }}
+          MAVEN_PUBLISH_PASSWORD: ${{ github.token }}
+
+      - name: Upload server TGZ for RPM job
+        uses: actions/upload-artifact@v3
+        with:
+          name: tgz
+          path: jasper-service-server/build/distributions/*.tgz
+
+    outputs:
+      rpm_version: ${{ steps.version.outputs.version-without-v }}
+
+  rpmbuild:
+    needs: release
+    uses: "riege/rpm-build/.github/workflows/rpm-build.yml@main"
+    with:
+      rpm_name: jasper-service
+      rpm_version: ${{ needs.release.outputs.rpm_version }}
+      rhel_version: 7
+      rpm_source_path: jasper-service-server/src/rpm
+      build_artifact: tgz
+    secrets:
+      sign_key: ${{ secrets.GPG_RPMBUILD_OPS_SIGN_KEY }}
+      sign_key_passphrase: ${{ secrets.GPG_RPMBUILD_OPS_SIGN_KEY_PWD }}
+
+  yumupload:
+    needs: rpmbuild
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download RPM from Workflow
+        uses: actions/download-artifact@v3
+        with:
+          name: rpms
+
+      - name: Upload RPM to YUM repo
+        env:
+          YUMREPO_PATH: RHEL-riege-more-java
+        run: |
+          STORAGE_URL="https://${{ secrets.YUMREPO_STORAGE_ACCOUNT_NAME }}.blob.core.windows.net/${{ secrets.YUMREPO_CONTAINER }}/$YUMREPO_PATH/Packages/${{ secrets.YUMREPO_SAS_TOKEN }}"
+          # upload all RPMs
+          find . -name "*.rpm" -exec azcopy copy --check-length=false --blob-type BlockBlob --put-md5 {} "$STORAGE_URL" \;
