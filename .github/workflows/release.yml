@@ -1,0 +1,47 @@
+name: release
+
+on:
+  push:
+    tags:
+      - v*
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout latest code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: 8
+          cache: 'gradle'
+
+      - name: Determine Version
+        id: version
+        uses: riege/action-version@v1
+
+      - name: Create release artifacts
+        run: |
+          ./gradlew -Pversion=${{ steps.version.outputs.version-without-v }} jar
+
+      - name: Create release and upload artifacts
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Jasper Service Functions ${{ steps.version.outputs.version-without-v }}
+          files: |
+            build/libs/*.jar
+
+      - name: Publish artifacts to GitHub Packages
+        run: |
+          echo "New version: ${{ steps.version.outputs.version-without-v }}"
+          echo "Github username: ${GITHUB_ACTOR}"
+          ./gradlew -Pversion=${{ steps.version.outputs.version-without-v }} publish
+        env:
+          PROJECT_URL: ${{ github.event.repository.url }}
+          MAVEN_PUBLISH_URL: https://maven.pkg.github.com/${{ github.repository }}
+          MAVEN_PUBLISH_USERNAME: ${{ github.actor }}
+          MAVEN_PUBLISH_PASSWORD: ${{ github.token }}
