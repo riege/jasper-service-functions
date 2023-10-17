@@ -59,5 +59,5 @@ repositories {
 
 
 dependencies {
-    implementation(group = "net.sf.jasperreports", name = "jasperreports", version = "6.14.0")
+    implementation(group = "net.sf.jasperreports", name = "jasperreports", version = "6.20.6")
 }
